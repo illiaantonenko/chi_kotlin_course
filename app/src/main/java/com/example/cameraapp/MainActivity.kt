@@ -1,106 +1,70 @@
 package com.example.cameraapp
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.graphics.Bitmap
 import android.os.Bundle
-import android.provider.MediaStore
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.result.contract.ActivityResultContracts.RequestPermission
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
-import com.example.cameraapp.ui.theme.CameraAppTheme
+import android.util.Log
+import android.widget.Button
+import android.widget.TextView
+import androidx.fragment.app.FragmentActivity
 
-class MainActivity : ComponentActivity() {
-    private var permissionDeniedMessage: String? by mutableStateOf(null)
-    private var capturedImage: Bitmap? by mutableStateOf(null)
+class MainActivity : FragmentActivity() {
+    private lateinit var counterTextView: TextView
+    private lateinit var incrementButton: Button
+    private lateinit var navigateButton: Button
+    private var counter = 0
 
-    private val cameraLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == RESULT_OK) {
-            val imageBitmap = result.data?.extras?.get("data") as? Bitmap
-            capturedImage = imageBitmap
-        }
-    }
-
-    private val requestPermissionLauncher = registerForActivityResult(RequestPermission()) { isGranted: Boolean ->
-        if (isGranted) {
-            openCamera()
-        } else {
-            permissionDeniedMessage = "Sorry, no permission to access camera"
-        }
-    }
+    private val counterReceiver = CounterBroadcastReceiver()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            CameraAppTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    CameraCapture(
-                        modifier = Modifier.padding(innerPadding),
-                        onButtonClick = { checkCameraPermission() },
-                        capturedImage = capturedImage,
-                        permissionDeniedMessage = permissionDeniedMessage
-                    )
-                }
+        setContentView(R.layout.activity_main)
+
+        counterTextView = findViewById(R.id.counterTextView)
+        incrementButton = findViewById(R.id.incrementButton)
+        navigateButton = findViewById(R.id.navigateButton)
+
+        incrementButton.setOnClickListener {
+            counter++
+            counterTextView.text = counter.toString()
+            sendCounterUpdate()
+        }
+
+        navigateButton.setOnClickListener {
+            val fragment = supportFragmentManager.findFragmentByTag(CounterFragment::class.java.simpleName)
+            if (fragment == null) {
+                supportFragmentManager.beginTransaction()
+                    .replace(R.id.fragment_container, CounterFragment.newInstance(counter), CounterFragment::class.java.simpleName)
+                    .addToBackStack(null)
+                    .commit()
+            } else {
+                (fragment as CounterFragment).updateCounter(counter)
             }
         }
-    }
-    private fun checkCameraPermission() {
-        when {
-            ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED -> {
-                openCamera()
-            }
-            else -> {
-                requestPermissionLauncher.launch(Manifest.permission.CAMERA)
-            }
+
+        counterReceiver.setOnCounterUpdateListener { newCounter ->
+            counter = newCounter
+            counterTextView.text = counter.toString()
         }
+
+        startService(Intent(this, CounterService::class.java))
     }
 
-    private fun openCamera() {
-        val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-        cameraLauncher.launch(intent)
+    override fun onResume() {
+        super.onResume()
+        registerReceiver(counterReceiver, CounterBroadcastReceiver.getIntentFilter(),
+            RECEIVER_EXPORTED
+        )
     }
-}
 
-@Composable
-fun CameraCapture(modifier: Modifier = Modifier, onButtonClick: () -> Unit, capturedImage: Bitmap?, permissionDeniedMessage: String?) {
-    Column (modifier = modifier) {
-        capturedImage?.let {
-            Image(bitmap = it.asImageBitmap(), contentDescription = null, modifier = Modifier.padding(16.dp))
-        }
-        permissionDeniedMessage?.let {
-            Text(text = it, modifier = Modifier.padding(16.dp))
-        }
-        Button (
-            onClick = onButtonClick,
-            colors = ButtonDefaults.buttonColors()
-        ) {
-            Text("Open camera")
-        }
+    override fun onPause() {
+        super.onPause()
+        unregisterReceiver(counterReceiver)
     }
-}
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    CameraAppTheme {
-        CameraCapture(onButtonClick = {}, capturedImage = null, permissionDeniedMessage = null)
+    private fun sendCounterUpdate() {
+        val intent = Intent("com.example.cameraapp.COUNTER_UPDATE")
+        intent.putExtra("counter_value", counter)
+        Log.d("MainActivity", "Sending counter update: $counter")
+        sendBroadcast(intent)
     }
 }
