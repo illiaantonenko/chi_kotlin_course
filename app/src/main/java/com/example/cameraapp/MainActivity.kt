@@ -2,56 +2,37 @@ package com.example.cameraapp
 
 import android.os.Bundle
 import android.widget.Button
-import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import androidx.lifecycle.lifecycleScope
+import com.example.cameraapp.network.NetworkLayer
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlin.system.measureTimeMillis
 
 class MainActivity : FragmentActivity() {
-    private lateinit var counterTextView: TextView
-    private lateinit var incrementButton: Button
-    private lateinit var sortButton: Button
-    private lateinit var arraySizeInput: EditText
-    private var counter = 0
+    private lateinit var fetchDataButton: Button
+    private lateinit var dataTextView: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        counterTextView = findViewById(R.id.counterTextView)
-        incrementButton = findViewById(R.id.incrementButton)
-        sortButton = findViewById(R.id.sortButton)
-        arraySizeInput = findViewById(R.id.arraySizeInput)
+        fetchDataButton = findViewById(R.id.fetchDataButton)
+        dataTextView = findViewById(R.id.dataTextView)
 
-        incrementButton.setOnClickListener {
-            counter++
-            counterTextView.text = counter.toString()
-        }
-
-        sortButton.setOnClickListener {
-            val arraySize = arraySizeInput.text.toString().toIntOrNull() ?: 0
-            if (arraySize > 0) {
-                sortArrayInBackground(arraySize)
-            } else {
-                Toast.makeText(this, "Please enter a valid array size", Toast.LENGTH_SHORT).show()
-            }
+        fetchDataButton.setOnClickListener {
+            fetchData()
         }
     }
 
-    private fun sortArrayInBackground(size: Int) {
-        CoroutineScope(Dispatchers.Main).launch {
-            val array = IntArray(size) { it }
-            val time = measureTimeMillis {
-                withContext(Dispatchers.Default) {
-                    array.sort()
-                }
+    private fun fetchData() {
+        lifecycleScope.launch {
+            try {
+                val posts = NetworkLayer.apiService.getPosts()
+                dataTextView.text = posts.joinToString("\n\n") { it.title }
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "Failed to fetch data", Toast.LENGTH_SHORT).show()
             }
-            Toast.makeText(this@MainActivity, "Array sorted in $time ms", Toast.LENGTH_LONG).show()
         }
     }
 }

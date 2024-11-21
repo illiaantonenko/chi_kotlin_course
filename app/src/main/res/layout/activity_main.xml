@@ -5,29 +5,16 @@
     android:orientation="vertical"
     tools:context=".MainActivity">
 
+    <Button
+        android:id="@+id/fetchDataButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Fetch Data" />
+
     <TextView
-        android:id="@+id/counterTextView"
+        android:id="@+id/dataTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="0"
-        android:textSize="24sp" />
-
-    <Button
-        android:id="@+id/incrementButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Increment Counter" />
-
-    <EditText
-        android:id="@+id/arraySizeInput"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:hint="Enter array size"
-        android:inputType="number" />
-
-    <Button
-        android:id="@+id/sortButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Sort Array" />
+        android:text=""
+        android:textSize="16sp" />
 </LinearLayout>
