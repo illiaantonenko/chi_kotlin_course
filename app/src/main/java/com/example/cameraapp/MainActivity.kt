@@ -1,19 +1,23 @@
 package com.example.cameraapp
 
-import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import android.widget.Button
+import android.widget.EditText
 import android.widget.TextView
+import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlin.system.measureTimeMillis
 
 class MainActivity : FragmentActivity() {
     private lateinit var counterTextView: TextView
     private lateinit var incrementButton: Button
-    private lateinit var navigateButton: Button
+    private lateinit var sortButton: Button
+    private lateinit var arraySizeInput: EditText
     private var counter = 0
-
-    private val counterReceiver = CounterBroadcastReceiver()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -21,50 +25,33 @@ class MainActivity : FragmentActivity() {
 
         counterTextView = findViewById(R.id.counterTextView)
         incrementButton = findViewById(R.id.incrementButton)
-        navigateButton = findViewById(R.id.navigateButton)
+        sortButton = findViewById(R.id.sortButton)
+        arraySizeInput = findViewById(R.id.arraySizeInput)
 
         incrementButton.setOnClickListener {
             counter++
             counterTextView.text = counter.toString()
-            sendCounterUpdate()
         }
 
-        navigateButton.setOnClickListener {
-            val fragment = supportFragmentManager.findFragmentByTag(CounterFragment::class.java.simpleName)
-            if (fragment == null) {
-                supportFragmentManager.beginTransaction()
-                    .replace(R.id.fragment_container, CounterFragment.newInstance(counter), CounterFragment::class.java.simpleName)
-                    .addToBackStack(null)
-                    .commit()
+        sortButton.setOnClickListener {
+            val arraySize = arraySizeInput.text.toString().toIntOrNull() ?: 0
+            if (arraySize > 0) {
+                sortArrayInBackground(arraySize)
             } else {
-                (fragment as CounterFragment).updateCounter(counter)
+                Toast.makeText(this, "Please enter a valid array size", Toast.LENGTH_SHORT).show()
             }
         }
+    }
 
-        counterReceiver.setOnCounterUpdateListener { newCounter ->
-            counter = newCounter
-            counterTextView.text = counter.toString()
+    private fun sortArrayInBackground(size: Int) {
+        CoroutineScope(Dispatchers.Main).launch {
+            val array = IntArray(size) { it }
+            val time = measureTimeMillis {
+                withContext(Dispatchers.Default) {
+                    array.sort()
+                }
+            }
+            Toast.makeText(this@MainActivity, "Array sorted in $time ms", Toast.LENGTH_LONG).show()
         }
-
-        startService(Intent(this, CounterService::class.java))
-    }
-
-    override fun onResume() {
-        super.onResume()
-        registerReceiver(counterReceiver, CounterBroadcastReceiver.getIntentFilter(),
-            RECEIVER_EXPORTED
-        )
-    }
-
-    override fun onPause() {
-        super.onPause()
-        unregisterReceiver(counterReceiver)
-    }
-
-    private fun sendCounterUpdate() {
-        val intent = Intent("com.example.cameraapp.COUNTER_UPDATE")
-        intent.putExtra("counter_value", counter)
-        Log.d("MainActivity", "Sending counter update: $counter")
-        sendBroadcast(intent)
     }
 }
